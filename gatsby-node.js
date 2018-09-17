@@ -1,63 +1,41 @@
 const axios = require('axios');
+const YAML = require('yamljs');
+const gh = require('parse-github-url');
 const createNodeHelpers = require('gatsby-node-helpers').default;
 
 const { createNodeFactory, generateNodeId } = createNodeHelpers({
-  typePrefix: 'TestData'
+  typePrefix: 'Starters'
 });
 
-const IssueNode = createNodeFactory('TestIssue');
-const TestNode = createNodeFactory('TestNode');
+const Repo = createNodeFactory('Repo');
+const Starter = createNodeFactory('Starter');
+
+const getRepo = async repoUrl => {
+  const { owner, name } = gh(repoUrl);
+
+  return await axios.get(`https://api.github.com/repos/${owner}/${name}`);
+};
 
 exports.sourceNodes = async ({ actions: { createNode } }) => {
-  // TODO get this data from YAML
-  const testData = [
-    {
-      id: 0,
-      name: 'Jason',
-      github: 'jlengstorf',
-      likes: ['puppies', 'whiskey', 'snacks']
-    },
-    {
-      id: 1,
-      name: 'Santa',
-      github: 'kyleamathews',
-      likes: ['children', 'elves', 'reindeer']
-    },
-    {
-      id: 2,
-      name: 'Easter Bunny',
-      likes: ['eggs']
-    }
-  ];
+  const starters = YAML.load('./data/starters.yml');
 
   await Promise.all(
-    testData.map(async data => {
-      if (data.github) {
-        const response = await axios.get(
-          `https://api.github.com/search/issues?q=org:gatsbyjs+author:${
-            data.github
-          }+type:pr+is:merged`
-        );
+    starters.map(async starter => {
+      const starterNode = Starter(starter, node => {
+        node.id = generateNodeId('Starter', node.name);
 
-        if (response.data && response.data.items) {
-          const issues = response.data.items;
+        return node;
+      });
 
-          data.issues = issues.map(issue => {
-            const issueNode = IssueNode(issue, {
-              parent: generateNodeId('TestNode', data.id)
-            });
+      const repo = await getRepo(starter.repo);
 
-            createNode(issueNode);
+      const repoNode = Repo(repo.data);
 
-            return issueNode;
-          });
-        }
-      }
+      repoNode.starter___NODE = starterNode.id;
+      starterNode.repo___NODE = repoNode.id;
 
-      const testNode = TestNode(data);
-      createNode(testNode);
+      createNode(repoNode);
+      createNode(starterNode);
     })
   );
-
-  return;
 };

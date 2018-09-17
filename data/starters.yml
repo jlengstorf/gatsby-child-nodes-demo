@@ -1,0 +1,4 @@
+- name: Default Starter
+  repo: https://github.com/gatsbyjs/gatsby-starter-default
+- name: Hello World Starter
+  repo: https://github.com/gatsbyjs/gatsby-starter-hello-world
